@@ -59,7 +59,7 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/ebes/admin",
-        element: <Navigate to="/ebes/admin/dashboard/" />,
+        element: <Navigate to="/ebes/admin/home/" />,
       },
       {
         path: "/ebes/admin/home/",

@@ -188,7 +188,7 @@ function Login() {
                   }, 5000)
                   axios.post('token/login/', data).then((e) => {
                     const token = e.data.auth_token;
-                    localStorage.setItem('eBooking_auth_token', token);
+                    localStorage.setItem('Token', token);
                     axios.get('users/me/', {
                       headers: {
                         Authorization: `Token ${token}`,
@@ -203,7 +203,7 @@ function Login() {
                         showConfirmButton: false,
                         timer: 1500,
                       })
-                      navigate('/eBooking/admin')
+                      navigate('/ebes/admin')
                     })
                   }).catch((error) => {
                     Swal.fire({

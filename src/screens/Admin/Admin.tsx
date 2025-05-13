@@ -102,7 +102,7 @@ function Admin() {
 
         {/* Sidebar Navigation */}
         <nav className={`
-          z-40 bg-primary border-r border-border
+          z-40 bg-[#0134b2] border-r border-border
           w-[20vw] md:w-[300px] h-full md:absolute relative 
           transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : 'fixed -translate-x-full'}
