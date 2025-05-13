@@ -14,13 +14,21 @@ import {
   Home,
   Megaphone
 } from "lucide-react"
-import { Link, Outlet, useLocation } from "react-router-dom"
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 // import { ModeToggle } from "@/components/mode-toggle";
 
 function Admin() {
-  const location = useLocation();
+  const navigate = useNavigate(); // Add this hook
   const [isOpen, setIsOpen] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(false);
+
+
+  const handleLogout = () => {
+    // Clear all items from localStorage
+    localStorage.clear();
+    // Navigate to login page
+    navigate('/ebes');
+  };
 
   // Screen size detection
   useEffect(() => {
@@ -146,10 +154,13 @@ function Admin() {
 
           {/* Logout Button */}
           <div className="absolute bottom-8 left-0 right-0 px-4">
-            <Link to="/ebes" className="w-full flex items-center gap-3 px-4 py-3 text-white/70 hover:bg-red-500 hover:text-white rounded-lg transition-colors">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 text-white/70 hover:bg-red-500 hover:text-white rounded-lg transition-colors"
+            >
               <LogOut className="w-5 h-5" />
               <span>Logout</span>
-            </Link>
+            </button>
           </div>
         </nav>
 

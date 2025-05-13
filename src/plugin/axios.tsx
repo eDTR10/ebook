@@ -7,7 +7,7 @@ axios.defaults.headers.post['Content-Type'] = 'application/json';
 // Add auth token to all requests
 axios.interceptors.request.use(
     config => {
-        const token = localStorage.getItem('eprojex_auth_token');
+        const token = localStorage.getItem('Token');
         if (token) {
             config.headers.Authorization = `Token ${token}`;
         }

@@ -128,17 +128,17 @@ function Login() {
         {/* Carousel Section */}
         <div className="w-[100vw] absolute z-0 lg:w-1/2  ">
 
-        <div className="relative h-screen w-full">
-    <img src={BG} className="h-screen w-full object-cover opacity-25" alt="" />
-    {/* Gradient overlay */}
-    <div
-      className="absolute inset-0"
-      style={{
-        background: "linear-gradient(to right, rgba(16,16,16,0.7) 0%, rgba(16,16,16,0.3) 60%, rgba(16,16,16,0) 100%)",
-        pointerEvents: "none"
-      }}
-    />
-  </div>
+          <div className="relative h-screen w-full">
+            <img src={BG} className="h-screen w-full object-cover opacity-25" alt="" />
+            {/* Gradient overlay */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: "linear-gradient(to right, rgba(16,16,16,0.7) 0%, rgba(16,16,16,0.3) 60%, rgba(16,16,16,0) 100%)",
+                pointerEvents: "none"
+              }}
+            />
+          </div>
           {/* <Slider {...carouselSettings} className="h-screen">
             <div className="flex h-[80vh] items-center justify-center flex-col gap-4">
               <img src={BG} className=" h-full object-cover" alt="" />
@@ -161,19 +161,19 @@ function Login() {
             <div className="fixed top-0 right-0 p-4">
               <ModeToggle />
             </div>
-            
+
             <div className=" flex relative h-[430px]">
               {/* Login Form */}
-              
+
               <div
                 className={`absolute top-0 left-0 w-full transition-transform duration-500 ${showRegister ? '-translate-x-full duration-500 opacity-0' : ' duration-500 opacity-500  translate-x-100'}`}
               >
                 <div className="space-y-2 ">
-                  
+
                   <h1 className="text-3xl font-bold text-primary ">Welcome to eBooking</h1>
-<p className=" text-xs text-muted-foreground">
-  eBooking is the official booking system for DICT Region 10 facilities. Easily reserve rooms, equipment, and resources for your events and meetings.
-</p>
+                  <p className=" text-xs text-muted-foreground">
+                    eBooking is the official booking system for DICT Region 10 facilities. Easily reserve rooms, equipment, and resources for your events and meetings.
+                  </p>
                 </div>
                 <form onSubmit={(e) => {
                   e.preventDefault()
@@ -196,6 +196,7 @@ function Login() {
                     }).then((response) => {
                       setIsLoading(false)
                       setData({ email: "", password: "" })
+                      localStorage.setItem('accessLevel', response.data.acc_lvl);
                       Swal.fire({
                         icon: 'success',
                         title: 'Login Successful!',
@@ -301,7 +302,7 @@ function Login() {
                     </button>
                   </p>
                 </div>
-                 <img src={DICT} className="  mt-5 w-full  flex  self-center h-20 object-contain" alt="" />
+                <img src={DICT} className="  mt-5 w-full  flex  self-center h-20 object-contain" alt="" />
               </div>
               {/* Registration Form */}
               <div
@@ -324,19 +325,19 @@ function Login() {
                     />
                     {registerErrors.firstName && <p className="text-xs text-red-500">{registerErrors.firstName}</p>}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName" className=" text-secondary-foreground">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      value={registerData.lastName}
-                      onChange={(e) => setRegisterData({ ...registerData, lastName: e.target.value })}
-                      className={`text-secondary-foreground ${registerErrors.lastName ? 'border-red-500' : ''}`}
-                      placeholder="Last Name"
-                      required
-                    />
-                    {registerErrors.lastName && <p className="text-xs text-red-500">{registerErrors.lastName}</p>}
-                  </div></div>
-                  
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName" className=" text-secondary-foreground">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={registerData.lastName}
+                        onChange={(e) => setRegisterData({ ...registerData, lastName: e.target.value })}
+                        className={`text-secondary-foreground ${registerErrors.lastName ? 'border-red-500' : ''}`}
+                        placeholder="Last Name"
+                        required
+                      />
+                      {registerErrors.lastName && <p className="text-xs text-red-500">{registerErrors.lastName}</p>}
+                    </div></div>
+
                   <div className="space-y-2">
                     <Label htmlFor="registerEmail" className=" text-secondary-foreground">Email</Label>
                     <Input
@@ -353,61 +354,61 @@ function Login() {
 
                   <div className=" flex gap-5">
                     <div className="space-y-2">
-                    <Label htmlFor="registerPassword" className=" text-secondary-foreground">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="registerPassword"
-                        type={showRegisterPassword ? "text" : "password"}
-                        value={registerData.password}
-                        onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                        className={`text-secondary-foreground pr-10 ${registerErrors.password ? 'border-red-500' : ''}`}
-                        placeholder="••••••••"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRegisterPassword((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                        tabIndex={-1}
-                      >
-                        {showRegisterPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
+                      <Label htmlFor="registerPassword" className=" text-secondary-foreground">Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="registerPassword"
+                          type={showRegisterPassword ? "text" : "password"}
+                          value={registerData.password}
+                          onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                          className={`text-secondary-foreground pr-10 ${registerErrors.password ? 'border-red-500' : ''}`}
+                          placeholder="••••••••"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowRegisterPassword((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          tabIndex={-1}
+                        >
+                          {showRegisterPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {registerErrors.password && <p className="text-xs text-red-500">{registerErrors.password}</p>}
                     </div>
-                    {registerErrors.password && <p className="text-xs text-red-500">{registerErrors.password}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword" className=" text-secondary-foreground">Confirm Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        type={showRegisterConfirm ? "text" : "password"}
-                        value={registerData.confirmPassword}
-                        onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
-                        className={`text-secondary-foreground pr-10 ${registerErrors.confirmPassword ? 'border-red-500' : ''}`}
-                        placeholder="••••••••"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRegisterConfirm((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                        tabIndex={-1}
-                      >
-                        {showRegisterConfirm ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword" className=" text-secondary-foreground">Confirm Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showRegisterConfirm ? "text" : "password"}
+                          value={registerData.confirmPassword}
+                          onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                          className={`text-secondary-foreground pr-10 ${registerErrors.confirmPassword ? 'border-red-500' : ''}`}
+                          placeholder="••••••••"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowRegisterConfirm((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          tabIndex={-1}
+                        >
+                          {showRegisterConfirm ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {registerErrors.confirmPassword && <p className="text-xs text-red-500">{registerErrors.confirmPassword}</p>}
                     </div>
-                    {registerErrors.confirmPassword && <p className="text-xs text-red-500">{registerErrors.confirmPassword}</p>}
                   </div>
-                  </div>
-                  
+
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
@@ -451,11 +452,11 @@ function Login() {
                   </p>
                 </div>
 
-                 <img src={DICT} className="  mt-5 w-full  flex  self-center h-20 object-contain" alt="" />
+                <img src={DICT} className="  mt-5 w-full  flex  self-center h-20 object-contain" alt="" />
               </div>
             </div>
 
-           
+
           </div>
         </div>
       </div>

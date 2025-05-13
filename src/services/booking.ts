@@ -24,7 +24,7 @@ export interface Booking {
  * Get all bookings
  */
 export const getAllBookings = (): Promise<Booking[]> => {
-  const token = localStorage.getItem('eprojex_auth_token');
+  const token = localStorage.getItem('Token');
   
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
@@ -73,7 +73,7 @@ export const getAllBookings = (): Promise<Booking[]> => {
  * Get a single booking by ID
  */
 export const getBookingById = (id: number): Promise<Booking> => {
-  const token = localStorage.getItem('eprojex_auth_token');
+  const token = localStorage.getItem('Token');
   
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
@@ -110,7 +110,7 @@ export const getBookingById = (id: number): Promise<Booking> => {
  * Create a new booking
  */
 export const createBooking = (bookingData: Omit<Booking, 'id'>): Promise<Booking> => {
-  const token = localStorage.getItem('eprojex_auth_token');
+  const token = localStorage.getItem('Token');
   
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
@@ -147,7 +147,7 @@ export const createBooking = (bookingData: Omit<Booking, 'id'>): Promise<Booking
  * Update an existing booking
  */
 export const updateBooking = (id: number, bookingData: Partial<Booking>): Promise<Booking> => {
-  const token = localStorage.getItem('eprojex_auth_token');
+  const token = localStorage.getItem('Token');
   
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
@@ -184,7 +184,7 @@ export const updateBooking = (id: number, bookingData: Partial<Booking>): Promis
  * Delete a booking
  */
 export const deleteBooking = (id: number): Promise<void> => {
-  const token = localStorage.getItem('eprojex_auth_token');
+  const token = localStorage.getItem('Token');
   
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));

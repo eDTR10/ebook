@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, Minus, Calendar as CalendarIcon, List, Info } from "lucide-react";
+import { X, Plus, Minus, Calendar as CalendarIcon, List, Info, Check } from "lucide-react";
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2 } from "lucide-react";
@@ -59,7 +59,7 @@ const bookingToEvent = (booking: Booking): Event => {
             quantity: eq.quantity
         })),
         start: new Date(`${booking.start_date} ${booking.start_time}`),
-        end: new Date(`${booking.start_date} ${booking.end_time}`), // Use start_date for the end time on the same day
+        end: new Date(`${booking.end_date} ${booking.end_time}`), // Use start_date for the end time on the same day
         status: booking.status,
         remarks: booking.remarks || ''
     };
@@ -85,7 +85,10 @@ const eventToBooking = (event: Event, userId: number = 1): Omit<Booking, 'id'> =
 
 const HomeMainContainer = () => {
     // User role state
-    const [isAdmin, setIsAdmin] = useState(true); // Set to false for regular users
+    const [isAdmin, setIsAdmin] = useState(() => {
+        const accessLevel = localStorage.getItem('accessLevel');
+        return accessLevel === '1'; // '1' means admin access level
+    });
 
     // Calendar and event states
     const [events, setEvents] = useState<Event[]>([]);
@@ -126,6 +129,22 @@ const HomeMainContainer = () => {
     // Side Effects
     useEffect(() => {
         fetchBookings();
+    }, []);
+
+    useEffect(() => {
+        const checkAdminStatus = () => {
+            const accessLevel = localStorage.getItem('accessLevel');
+            setIsAdmin(accessLevel === '1');
+        };
+
+        // Check initially
+        checkAdminStatus();
+
+        // Set up event listener for storage changes
+        window.addEventListener('storage', checkAdminStatus);
+
+        // Clean up event listener
+        return () => window.removeEventListener('storage', checkAdminStatus);
     }, []);
 
     // API Handlers
@@ -175,6 +194,85 @@ const HomeMainContainer = () => {
         setStatus('pending');
 
         setIsActivityModalOpen(true);
+    };
+
+    // Add a function to approve/reject activities for admins
+    const handleStatusChange = async (eventId: string, newStatus: 'pending' | 'approved' | 'rejected') => {
+        const eventToUpdate = events.find(event => event.id === eventId);
+        if (!eventToUpdate) return;
+
+        try {
+            const updatedEvent = {
+                ...eventToUpdate,
+                status: newStatus
+            };
+
+            const bookingData = eventToBooking(updatedEvent);
+            await updateBooking(parseInt(eventId), bookingData);
+
+            // Update local state
+            setEvents(prevEvents =>
+                prevEvents.map(event =>
+                    event.id === eventId ? updatedEvent : event
+                )
+            );
+
+            toast({
+                title: `Activity ${newStatus}`,
+                description: `'${eventToUpdate.title}' has been ${newStatus}`,
+            });
+        } catch (error) {
+            console.error(`Failed to update activity status:`, error);
+            toast({
+                title: 'Error',
+                description: `Failed to update the activity status. Please try again.`,
+                variant: 'destructive'
+            });
+        }
+    };
+
+    const handleApproveAll = async () => {
+        const pendingEvents = events.filter(event => event.status === 'pending');
+        if (pendingEvents.length === 0) {
+            toast({
+                title: "No pending activities",
+                description: "There are no pending activities to approve."
+            });
+            return;
+        }
+
+        try {
+            // Create a copy of events to work with
+            const updatedEvents = [...events];
+
+            // Process each pending event
+            for (const event of pendingEvents) {
+                const eventIndex = updatedEvents.findIndex(e => e.id === event.id);
+                if (eventIndex !== -1) {
+                    const updatedEvent = { ...updatedEvents[eventIndex], status: 'approved' as const };
+                    updatedEvents[eventIndex] = updatedEvent;
+
+                    // Update in the backend
+                    const bookingData = eventToBooking(updatedEvent);
+                    await updateBooking(parseInt(event.id), bookingData);
+                }
+            }
+
+            // Update local state after all backend calls succeed
+            setEvents(updatedEvents);
+
+            toast({
+                title: "Batch approval complete",
+                description: `${pendingEvents.length} activities have been approved.`
+            });
+        } catch (error) {
+            console.error('Failed to approve all activities:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to approve all activities. Some may not have been processed.',
+                variant: 'destructive'
+            });
+        }
     };
 
     const handleEditActivity = (event: Event) => {
@@ -575,7 +673,18 @@ const HomeMainContainer = () => {
             <h2 className="text-2xl font-bold mb-6">Event Calendar</h2>
             <Card className="w-full max-w-6xl shadow-lg">
                 <CardHeader className="p-4 pb-0 flex justify-between items-center">
-                    <div></div> {/* Empty div to push buttons to the right */}
+                    <div>
+                        {isAdmin && (
+                            <Button
+                                onClick={handleApproveAll}
+                                variant="outline"
+                                className="flex items-center"
+                            >
+                                <Check className="mr-1 h-4 w-4" />
+                                Approve All Pending
+                            </Button>
+                        )}
+                    </div>
                     <div className="flex space-x-2">
                         <Button
                             onClick={openAddActivityModal}
@@ -1044,6 +1153,26 @@ const HomeMainContainer = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex space-x-1">
+                                                        {isAdmin && (
+                                                            <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="h-8 px-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                                                    onClick={() => handleStatusChange(event.id, 'approved')}
+                                                                >
+                                                                    Approve
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="h-8 px-2 bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                                                                    onClick={() => handleStatusChange(event.id, 'rejected')}
+                                                                >
+                                                                    Reject
+                                                                </Button>
+                                                            </>
+                                                        )}
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
