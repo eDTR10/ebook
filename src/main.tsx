@@ -14,9 +14,9 @@ import Loaderx from './components/loader/screenLoader.tsx';
 
 
 
-// const Login = lazy(() =>
-//   wait(1300).then(() => import("./screens/Authentication/Login/Login.tsx"))
-// );
+const Login = lazy(() =>
+  wait(1300).then(() => import("./screens/Authentication/Login/Login.tsx"))
+);
 
 
 
@@ -40,7 +40,7 @@ const router = createBrowserRouter([
     path: "/ebes",
     element:
       <Suspense fallback={<Loaderx />}>
-        <Admin />
+        <Login />
       </Suspense>
     ,
   },
