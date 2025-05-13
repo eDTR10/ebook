@@ -350,6 +350,7 @@ const HomeMainContainer = () => {
         newEnd: string
     ): boolean => {
         const dateStr = moment(checkDate).format('YYYY-MM-DD');
+        // Get events that occur on the same day we're checking
         const dateEvents = events.filter(event => moment(event.start).format('YYYY-MM-DD') === dateStr);
 
         const checkStartTime = moment(`${dateStr} ${newStart}`);
@@ -361,20 +362,26 @@ const HomeMainContainer = () => {
                 return false;
             }
 
+            // For events on the same day, only check time overlaps
             const existingStart = moment(event.start);
             const existingEnd = moment(event.end);
 
+            // Extract just the time portions for comparison
+            const existingStartTime = existingStart.format('HH:mm');
+            const existingEndTime = existingEnd.format('HH:mm');
+            const newStartTime = checkStartTime.format('HH:mm');
+            const newEndTime = checkEndTime.format('HH:mm');
+
             // Check if times are exactly the same
-            if (checkStartTime.format('HH:mm') === existingStart.format('HH:mm') &&
-                checkEndTime.format('HH:mm') === existingEnd.format('HH:mm')) {
+            if (newStartTime === existingStartTime && newEndTime === existingEndTime) {
                 return true;
             }
 
-            // Check if the new event overlaps with any existing event
+            // Check if the new event's time overlaps with any existing event's time
             return (
-                (checkStartTime.isSameOrAfter(existingStart) && checkStartTime.isBefore(existingEnd)) ||
-                (checkEndTime.isAfter(existingStart) && checkEndTime.isSameOrBefore(existingEnd)) ||
-                (checkStartTime.isBefore(existingStart) && checkEndTime.isAfter(existingEnd))
+                (newStartTime >= existingStartTime && newStartTime < existingEndTime) ||
+                (newEndTime > existingStartTime && newEndTime <= existingEndTime) ||
+                (newStartTime <= existingStartTime && newEndTime >= existingEndTime)
             );
         });
     };
@@ -397,7 +404,7 @@ const HomeMainContainer = () => {
             for (let i = 0; i < daysDiff; i++) {
                 const currentDate = moment(selectedStartDate).add(i, 'days');
 
-                // Check for conflicts on this specific date
+                // Check for time conflicts on this specific date
                 if (hasTimeConflict(currentDate, startTime, endTime)) {
                     setTimeError(`Time conflict on ${currentDate.format('MMM D')}. Please select different times.`);
                     return false;
@@ -406,7 +413,7 @@ const HomeMainContainer = () => {
         } else {
             // For editing, only check the start date for conflicts
             if (hasTimeConflict(moment(selectedStartDate), startTime, endTime)) {
-                setTimeError("This time conflicts with an existing activity");
+                setTimeError("This time conflicts with an existing activity. Please choose a different time.");
                 return false;
             }
         }
