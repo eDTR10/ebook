@@ -669,21 +669,22 @@ const HomeMainContainer = () => {
     };
 
     const EventComponent = ({ event }: { event: any }) => {
-        const statusColorClass = getStatusColor(event.status);
-        const statusTextClass = getStatusTextColor(event.status);
-        const statusBorderClass = getStatusBorderColor(event.status);
+    const statusColorClass = getStatusColor(event.status);
+    const statusTextClass = getStatusTextColor(event.status);
+    const statusBorderClass = getStatusBorderColor(event.status);
 
-        return (
-            <div
-                className={`${statusColorClass} ${statusBorderClass} border rounded px-1 py-0.5 overflow-hidden flex gap-1 flex-col`}
-                style={{ fontSize: '10px', lineHeight: '1.2' }}
-            >
-                <div className={`font-medium truncate ${statusTextClass}`}>{event.title}</div>
-                <div className="truncate  text-[8px] text-[#2e2e2e]">{moment(event.start).format('h:mm')}-{moment(event.end).format('h:mm')}</div>
+    return (
+        <div
+            className={`${statusColorClass} ${statusBorderClass} border rounded px-1 py-0.5 overflow-hidden flex gap-1 flex-col`}
+            style={{ fontSize: '10px', lineHeight: '1.2' }}
+        >
+            <div className={`font-medium truncate ${statusTextClass}`}>{event.title}</div>
+            <div className="truncate text-[8px] text-[#2e2e2e]">
+                {moment(event.start).format('h:mm A')}-{moment(event.end).format('h:mm A')}
             </div>
-        );
-    };
-
+        </div>
+    );
+};
     return (
         <div className="flex flex-col items-center py-8 px-4 w-full">
            
@@ -692,7 +693,7 @@ const HomeMainContainer = () => {
                 <CardHeader className="p-4 pb-0 flex justify-between items-center">
                     
                    
-                     <h2 className="text-2xl border border-primary w-full  font-extrabold p-3 rounded-md mb-6 text-primary flex gap-2 items-center"> <CalendarIcon className="h-6 w-6 text-primary" /> Event Calendar</h2>
+                     <h2 className="text-2xl md:text-base border border-primary w-full  font-extrabold p-3 rounded-md mb-6 text-primary flex gap-2 items-center"> <CalendarIcon className="h-6 w-6 sm:w-4 sm:h-4 text-primary" /> Event Calendar</h2>
                      <div className=' flex gap-2 md:flex-col w-full justify-between'>
                         <div>
                         {isAdmin && (
@@ -740,6 +741,29 @@ const HomeMainContainer = () => {
                             selectable={false} // Disable selection
                             className="min-h-[700px]"
                             components={{
+                                toolbar: (props) => (
+                                    <div className="rbc-toolbar">
+                                        <span className="rbc-btn-group">
+                                            <button type="button" onClick={() => props.onNavigate('PREV')}>
+                                                Previous
+                                            </button>
+                                            <button type="button" onClick={() => props.onNavigate('TODAY')}>
+                                                Today
+                                            </button>
+                                            <button type="button" onClick={() => props.onNavigate('NEXT')}>
+                                                Next
+                                            </button>
+                                        </span>
+                                        <span className="rbc-toolbar-label sm:mt-2 text-primary text-[30px] sm:text-lg " style={{
+                                         
+                                            fontWeight: 'bold',
+                                            textAlign: 'right',
+                                        }}>
+                                            {props.label}
+                                        </span>
+                                       
+                                    </div>
+                                ),
                                 dateCellWrapper: CustomDateCell,
                                 event: EventComponent
                             }}

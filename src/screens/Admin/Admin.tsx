@@ -128,6 +128,10 @@ function Admin() {
             <p className="text-xs text-white/70 mt-1 uppercase text-center">
               electronic Booking Event System
             </p> */}
+
+            <p className=" bg-white text-[9px] p-1 rounded-[5px] border border-border mb-2">
+              Misamis Oriental
+            </p>
             <p className="text-xs text-white/70 mt-1 uppercase text-center">
               electronic Booking Event System
             </p>
