@@ -71,8 +71,9 @@ const eventToBooking = (event: Event, userId: number = 1): Omit<Booking, 'id'> =
         end_date: moment(event.end).format('YYYY-MM-DD'), // For single-day events this will be the same as start_date
         activity_title: event.title,
         requestor_name: event.requestor,
-        start_time: moment(event.start).format('HH:mm A'),
-        end_time: moment(event.end).format('HH:mm A'),
+        // Update this in eventToBooking function
+        start_time: moment(event.start).format('HH:mm'),
+        end_time: moment(event.end).format('HH:mm'),
         equipment: event.equipments.map(eq => ({
             name: eq.name,
             quantity: eq.quantity
@@ -157,10 +158,18 @@ const HomeMainContainer = () => {
 
             // Update clicked dates based on fetched events
             const newClickedDates = new Set<string>();
+
             convertedEvents.forEach(event => {
-                const dateStr = moment(event.start).format('YYYY-MM-DD');
-                newClickedDates.add(dateStr);
+                // For each event, mark all dates from start to end as clicked
+                const startDate = moment(event.start);
+                const endDate = moment(event.end);
+
+                // Add all dates in the range to clicked dates
+                for (let d = moment(startDate); d.isSameOrBefore(endDate, 'day'); d.add(1, 'day')) {
+                    newClickedDates.add(d.format('YYYY-MM-DD'));
+                }
             });
+
             setClickedDates(newClickedDates);
         } catch (error) {
             console.error('Failed to fetch bookings:', error);
