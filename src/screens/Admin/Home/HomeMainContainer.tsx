@@ -14,7 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAllBookings, createBooking, updateBooking, deleteBooking, Booking, Equipment as ApiEquipment } from '@/services/booking';
+import { getAllBookings, createBooking, updateBooking, deleteBooking, Booking } from '@/services/booking';
 import { Separator } from "@/components/ui/separator";
 
 // Set up the localizer for the calendar
@@ -646,9 +646,9 @@ const HomeMainContainer = () => {
         }
 
         return (
-            <div className={`rbc-day-bg ${cellClass}`}>
-                {children}
-            </div>
+            <div className={`rbc-day-bg  ${cellClass}`}>
+                {children} 
+            </div> 
         );
     };
 
@@ -659,21 +659,26 @@ const HomeMainContainer = () => {
 
         return (
             <div
-                className={`${statusColorClass} ${statusBorderClass} border rounded px-1 py-0.5 overflow-hidden`}
+                className={`${statusColorClass} ${statusBorderClass} border rounded px-1 py-0.5 overflow-hidden flex gap-1 flex-col`}
                 style={{ fontSize: '10px', lineHeight: '1.2' }}
             >
                 <div className={`font-medium truncate ${statusTextClass}`}>{event.title}</div>
-                <div className="truncate">{moment(event.start).format('h:mm')}-{moment(event.end).format('h:mm')}</div>
+                <div className="truncate  text-[8px] text-[#2e2e2e]">{moment(event.start).format('h:mm')}-{moment(event.end).format('h:mm')}</div>
             </div>
         );
     };
 
     return (
         <div className="flex flex-col items-center py-8 px-4 w-full">
-            <h2 className="text-2xl font-bold mb-6">Event Calendar</h2>
-            <Card className="w-full max-w-6xl shadow-lg">
+           
+            <Card className="w-full max-w-6xl ">
+                
                 <CardHeader className="p-4 pb-0 flex justify-between items-center">
-                    <div>
+                    
+                   
+                     <h2 className="text-2xl border border-primary w-full  font-extrabold p-3 rounded-md mb-6 text-primary flex gap-2 items-center"> <CalendarIcon className="h-6 w-6 text-primary" /> Event Calendar</h2>
+                     <div className=' flex gap-2 md:flex-col w-full justify-between'>
+                        <div>
                         {isAdmin && (
                             <Button
                                 onClick={handleApproveAll}
@@ -702,6 +707,8 @@ const HomeMainContainer = () => {
                             View Activities
                         </Button>
                     </div>
+                     </div>
+                    
                 </CardHeader>
                 <CardContent className="p-6">
                     {isLoading ? (

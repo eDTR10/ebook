@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 // import { ModeToggle } from "@/components/mode-toggle";
-
+import LOGO from "./../../assets/logo/DICT-Logo-Final-2-300x153.png"
 function Admin() {
   const navigate = useNavigate(); // Add this hook
   const [isOpen, setIsOpen] = useState(true);
@@ -118,14 +118,17 @@ function Admin() {
           {/* Logo */}
           <div className="p-6 mt-5 flex flex-col items-center justify-center">
             <img
-              src="https://upload.wikimedia.org/wikipedia/commons/a/aa/DICT-Logo-icon_only.png"
+              src={LOGO}
               alt="ebes Logo"
-              className="h-24 w-auto"
+              className="h-40 w-auto"
             />
-            <h2 className="text-xl font-bold text-white mt-2">
-              <span className="text-red-500">e</span><span className="text-blue-700">BES</span>
+            {/* <h2 className="text-xl font-bold text-white mt-2">
+              <span className="text-red-500">e</span><span className=" text-white ">BES</span>
             </h2>
-            <p className="text-xs text-white/70 mt-1 text-center">
+            <p className="text-xs text-white/70 mt-1 uppercase text-center">
+              electronic Booking Event System
+            </p> */}
+            <p className="text-xs text-white/70 mt-1 uppercase text-center">
               electronic Booking Event System
             </p>
           </div>
