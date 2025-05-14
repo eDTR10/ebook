@@ -71,8 +71,9 @@ const eventToBooking = (event: Event, userId: number = 1): Omit<Booking, 'id'> =
         end_date: moment(event.end).format('YYYY-MM-DD'), // For single-day events this will be the same as start_date
         activity_title: event.title,
         requestor_name: event.requestor,
-        start_time: moment(event.start).format('HH:mm A'),
-        end_time: moment(event.end).format('HH:mm A'),
+        // Update this in eventToBooking function
+        start_time: moment(event.start).format('HH:mm'),
+        end_time: moment(event.end).format('HH:mm'),
         equipment: event.equipments.map(eq => ({
             name: eq.name,
             quantity: eq.quantity
@@ -157,10 +158,18 @@ const HomeMainContainer = () => {
 
             // Update clicked dates based on fetched events
             const newClickedDates = new Set<string>();
+
             convertedEvents.forEach(event => {
-                const dateStr = moment(event.start).format('YYYY-MM-DD');
-                newClickedDates.add(dateStr);
+                // For each event, mark all dates from start to end as clicked
+                const startDate = moment(event.start);
+                const endDate = moment(event.end);
+
+                // Add all dates in the range to clicked dates
+                for (let d = moment(startDate); d.isSameOrBefore(endDate, 'day'); d.add(1, 'day')) {
+                    newClickedDates.add(d.format('YYYY-MM-DD'));
+                }
             });
+
             setClickedDates(newClickedDates);
         } catch (error) {
             console.error('Failed to fetch bookings:', error);
@@ -350,6 +359,7 @@ const HomeMainContainer = () => {
         newEnd: string
     ): boolean => {
         const dateStr = moment(checkDate).format('YYYY-MM-DD');
+        // Get events that occur on the same day we're checking
         const dateEvents = events.filter(event => moment(event.start).format('YYYY-MM-DD') === dateStr);
 
         const checkStartTime = moment(`${dateStr} ${newStart}`);
@@ -361,20 +371,26 @@ const HomeMainContainer = () => {
                 return false;
             }
 
+            // For events on the same day, only check time overlaps
             const existingStart = moment(event.start);
             const existingEnd = moment(event.end);
 
+            // Extract just the time portions for comparison
+            const existingStartTime = existingStart.format('HH:mm');
+            const existingEndTime = existingEnd.format('HH:mm');
+            const newStartTime = checkStartTime.format('HH:mm');
+            const newEndTime = checkEndTime.format('HH:mm');
+
             // Check if times are exactly the same
-            if (checkStartTime.format('HH:mm') === existingStart.format('HH:mm') &&
-                checkEndTime.format('HH:mm') === existingEnd.format('HH:mm')) {
+            if (newStartTime === existingStartTime && newEndTime === existingEndTime) {
                 return true;
             }
 
-            // Check if the new event overlaps with any existing event
+            // Check if the new event's time overlaps with any existing event's time
             return (
-                (checkStartTime.isSameOrAfter(existingStart) && checkStartTime.isBefore(existingEnd)) ||
-                (checkEndTime.isAfter(existingStart) && checkEndTime.isSameOrBefore(existingEnd)) ||
-                (checkStartTime.isBefore(existingStart) && checkEndTime.isAfter(existingEnd))
+                (newStartTime >= existingStartTime && newStartTime < existingEndTime) ||
+                (newEndTime > existingStartTime && newEndTime <= existingEndTime) ||
+                (newStartTime <= existingStartTime && newEndTime >= existingEndTime)
             );
         });
     };
@@ -397,7 +413,7 @@ const HomeMainContainer = () => {
             for (let i = 0; i < daysDiff; i++) {
                 const currentDate = moment(selectedStartDate).add(i, 'days');
 
-                // Check for conflicts on this specific date
+                // Check for time conflicts on this specific date
                 if (hasTimeConflict(currentDate, startTime, endTime)) {
                     setTimeError(`Time conflict on ${currentDate.format('MMM D')}. Please select different times.`);
                     return false;
@@ -406,7 +422,7 @@ const HomeMainContainer = () => {
         } else {
             // For editing, only check the start date for conflicts
             if (hasTimeConflict(moment(selectedStartDate), startTime, endTime)) {
-                setTimeError("This time conflicts with an existing activity");
+                setTimeError("This time conflicts with an existing activity. Please choose a different time.");
                 return false;
             }
         }
