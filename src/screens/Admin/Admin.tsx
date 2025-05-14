@@ -1,20 +1,16 @@
 import { useState, useEffect } from "react";
 import { ThemeProvider } from "@/components/theme-provider"
 import {
-  LayoutDashboard,
-  FolderKanban,
-  Clock,
-  Settings,
+
   LogOut,
   Menu,
   X,
   ArrowUpCircle,
   ArrowDownCircle,
-  User2Icon,
   Home,
   Megaphone
 } from "lucide-react"
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { Link, Outlet,useNavigate } from "react-router-dom"
 // import { ModeToggle } from "@/components/mode-toggle";
 import LOGO from "./../../assets/logo/DICT-Logo-Final-2-300x153.png"
 function Admin() {

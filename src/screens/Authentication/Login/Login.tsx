@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Eye, EyeOff } from "lucide-react"
 import DICT from './../../../assets/DICT-Logo-Final-2-300x153.png'
 import { useState } from "react"
-import Slider from "react-slick"
+// import Slider from "react-slick"
 import "slick-carousel/slick/slick.css"
 import "slick-carousel/slick/slick-theme.css"
 import axios from "./../../../plugin/axios"
@@ -39,27 +39,27 @@ function Login() {
     lastName: ""
   })
 
-  const carouselSettings = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 3000,
-    draggable: true,
-    swipe: true,
-    swipeToSlide: true,
-    touchThreshold: 10,
-    cssEase: "cubic-bezier(0.87, 0.03, 0.41, 0.9)",
-    arrows: false,
-    dotsClass: "slick-dots",
-    appendDots: (dots: any) => (
-      <div className=" text-secondary-foreground" style={{ bottom: "25px" }}>
-        <ul className=" text-white " >{dots}</ul>
-      </div>
-    )
-  }
+  // const carouselSettings = {
+  //   dots: true,
+  //   infinite: true,
+  //   speed: 500,
+  //   slidesToShow: 1,
+  //   slidesToScroll: 1,
+  //   autoplay: true,
+  //   autoplaySpeed: 3000,
+  //   draggable: true,
+  //   swipe: true,
+  //   swipeToSlide: true,
+  //   touchThreshold: 10,
+  //   cssEase: "cubic-bezier(0.87, 0.03, 0.41, 0.9)",
+  //   arrows: false,
+  //   dotsClass: "slick-dots",
+  //   appendDots: (dots: any) => (
+  //     <div className=" text-secondary-foreground" style={{ bottom: "25px" }}>
+  //       <ul className=" text-white " >{dots}</ul>
+  //     </div>
+  //   )
+  // }
 
   // Registration handler with validation
   const handleRegister = (e: React.FormEvent) => {
