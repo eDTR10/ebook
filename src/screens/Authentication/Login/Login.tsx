@@ -204,7 +204,7 @@ function Login() {
                         showConfirmButton: false,
                         timer: 1500,
                       })
-                      navigate('/ebes/admin')
+                      navigate('/ebook/admin')
                     })
                   }).catch((error) => {
                     Swal.fire({

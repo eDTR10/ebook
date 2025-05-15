@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import  { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import { Calendar, Clock, User, Package, MessageCircle } from "lucide-react";
 import moment from 'moment';
 import { getAllBookings, Booking } from '@/services/booking';

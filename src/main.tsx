@@ -37,7 +37,7 @@ const EventsMainContainer = lazy(() =>
 
 const router = createBrowserRouter([
   {
-    path: "/ebes",
+    path: "/ebook",
     element:
       <Suspense fallback={<Loaderx />}>
         <Login />
@@ -45,7 +45,7 @@ const router = createBrowserRouter([
     ,
   },
   // {
-  //   path: "/ebes/display",
+  //   path: "/ebook/display",
   //   element:
   //     <Suspense fallback={<Loaderx />}>
   //       <AttendanceMainContainer3 />
@@ -53,16 +53,16 @@ const router = createBrowserRouter([
   //   ,
   // },
   {
-    path: "/ebes/admin",
+    path: "/ebook/admin",
     element: <Admin />,
 
     children: [
       {
-        path: "/ebes/admin",
-        element: <Navigate to="/ebes/admin/home/" />,
+        path: "/ebook/admin",
+        element: <Navigate to="/ebook/admin/home/" />,
       },
       {
-        path: "/ebes/admin/home/",
+        path: "/ebook/admin/home/",
         element: <>
           <Suspense fallback={<Loader />}>
             <HomeMainContainer />
@@ -70,7 +70,7 @@ const router = createBrowserRouter([
         </>,
       },
       {
-        path: "/ebes/admin/home/",
+        path: "/ebook/admin/home/",
         element: <>
           <Suspense fallback={<Loader />}>
             <HomeMainContainer />
@@ -78,7 +78,7 @@ const router = createBrowserRouter([
         </>,
       },
       {
-        path: "/ebes/admin/events/",
+        path: "/ebook/admin/events/",
         element: <>
           <Suspense fallback={<Loader />}>
             <EventsMainContainer />

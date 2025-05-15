@@ -23,7 +23,7 @@ function Admin() {
     // Clear all items from localStorage
     localStorage.clear();
     // Navigate to login page
-    navigate('/ebes');
+    navigate('/ebook');
   };
 
   // Screen size detection
@@ -74,8 +74,8 @@ function Admin() {
   // Update the helper function to check active routes more precisely
   const isActiveRoute = (path: string) => {
     // Special case for dashboard since it's the main route
-    if (path === '/ebes/admin/home/') {
-      return location.pathname === '/ebes/admin/home/' || location.pathname === '/ebes/admin/home/';
+    if (path === '/ebook/admin/home/') {
+      return location.pathname === '/ebook/admin/home/' || location.pathname === '/ebook/admin/home/';
     }
     return location.pathname.startsWith(path);
   };
@@ -84,9 +84,9 @@ function Admin() {
     {
       label: "Event Calendar",
       icon: <Home className="w-5 h-5" />,
-      href: "/ebes/admin/home/"
+      href: "/ebook/admin/home/"
     },
-    { label: "Events", icon: <Megaphone className="w-5 h-5" />, href: "/ebes/admin/events/" },
+    { label: "Events", icon: <Megaphone className="w-5 h-5" />, href: "/ebook/admin/events/" },
   ];
 
   return (
@@ -115,7 +115,7 @@ function Admin() {
           <div className="p-6 mt-5 flex flex-col items-center justify-center">
             <img
               src={LOGO}
-              alt="ebes Logo"
+              alt="ebook Logo"
               className="h-40 w-auto"
             />
             {/* <h2 className="text-xl font-bold text-white mt-2">
