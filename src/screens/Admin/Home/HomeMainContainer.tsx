@@ -9,18 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, Minus, Calendar as CalendarIcon, List, Info, Check } from "lucide-react";
-import { v4 as uuidv4 } from 'uuid';
+import { X, Plus, Minus, Calendar as CalendarIcon, List, Info, Check, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAllBookings, createBooking, updateBooking, deleteBooking, Booking } from '@/services/booking';
+import { getAllBookings, updateBooking, deleteBooking, Booking } from '@/services/booking';
 import { Separator } from "@/components/ui/separator";
+import axios from 'axios';
 
 // Set up the localizer for the calendar
 const localizer = momentLocalizer(moment);
 
-// Define interfaces
+// Interfaces
 interface Equipment {
     name: string;
     quantity: number;
@@ -34,7 +33,12 @@ interface Event {
     start: Date;
     end: Date;
     status: 'pending' | 'approved' | 'rejected';
-    remarks?: string; // Add remarks field
+    remarks?: string;
+    name?: string;
+    contact_no?: string;
+    email?: string;
+    attachment?: string;
+    editingAttachment?: boolean;
 }
 
 // Constants
@@ -49,47 +53,27 @@ const PREDEFINED_EQUIPMENT = [
 ];
 
 // Helper Functions
-const bookingToEvent = (booking: Booking): Event => {
-    return {
-        id: booking.id?.toString() || '',
-        title: booking.activity_title,
-        requestor: booking.requestor_name,
-        equipments: booking.equipment.map(eq => ({
-            name: eq.name,
-            quantity: eq.quantity
-        })),
-        start: new Date(`${booking.start_date} ${booking.start_time}`),
-        end: new Date(`${booking.end_date} ${booking.end_time}`), // Use start_date for the end time on the same day
-        status: booking.status,
-        remarks: booking.remarks || ''
-    };
-};
-
-const eventToBooking = (event: Event, userId: number = 1): Omit<Booking, 'id'> => {
-    return {
-        start_date: moment(event.start).format('YYYY-MM-DD'),
-        end_date: moment(event.end).format('YYYY-MM-DD'), // For single-day events this will be the same as start_date
-        activity_title: event.title,
-        requestor_name: event.requestor,
-        // Update this in eventToBooking function
-        start_time: moment(event.start).format('HH:mm'),
-        end_time: moment(event.end).format('HH:mm'),
-        equipment: event.equipments.map(eq => ({
-            name: eq.name,
-            quantity: eq.quantity
-        })),
-        user: userId,
-        remarks: event.remarks || '',
-        status: event.status
-    };
-};
+const bookingToEvent = (booking: Booking): Event => ({
+    id: booking.id?.toString() || '',
+    title: booking.activity_title,
+    requestor: booking.requestor_name,
+    equipments: booking.equipment.map(eq => ({
+        name: eq.name,
+        quantity: eq.quantity
+    })),
+    start: new Date(`${booking.start_date} ${booking.start_time}`),
+    end: new Date(`${booking.end_date} ${booking.end_time}`),
+    status: booking.status,
+    remarks: booking.remarks || '',
+    name: booking.name,
+    contact_no: booking.contact_no,
+    email: booking.email,
+    attachment: booking.attachment
+});
 
 const HomeMainContainer = () => {
     // User role state
-    const [isAdmin, setIsAdmin] = useState(() => {
-        const accessLevel = localStorage.getItem('accessLevel');
-        return accessLevel === '1'; // '1' means admin access level
-    });
+    const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('accessLevel') === '1');
 
     // Calendar and event states
     const [events, setEvents] = useState<Event[]>([]);
@@ -103,6 +87,7 @@ const HomeMainContainer = () => {
 
     // Form states
     const [selectedStartDate, setSelectedStartDate] = useState<Date | null>(null);
+    const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
     const [activityTitle, setActivityTitle] = useState('');
     const [startTime, setStartTime] = useState('09:00');
     const [endTime, setEndTime] = useState('10:00');
@@ -112,18 +97,17 @@ const HomeMainContainer = () => {
     const [customEquipment, setCustomEquipment] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
     const [status, setStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
-
+    const [name, setName] = useState('');
+    const [contactNo, setContactNo] = useState('');
+    const [email, setEmail] = useState('');
+    const [attachment, setAttachment] = useState<File | string | null>(null);
+    const [remarks, setRemarks] = useState('');
+    const [attachmentWarning, setAttachmentWarning] = useState<string>("");
     // Edit and delete states
     const [isEditMode, setIsEditMode] = useState(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [eventToDelete, setEventToDelete] = useState<string | null>(null);
-
-    // First, add this state variable at the top of your component where other states are defined
-    const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
-
-    const [remarks, setRemarks] = useState('');
-
 
     const { toast } = useToast();
 
@@ -133,18 +117,9 @@ const HomeMainContainer = () => {
     }, []);
 
     useEffect(() => {
-        const checkAdminStatus = () => {
-            const accessLevel = localStorage.getItem('accessLevel');
-            setIsAdmin(accessLevel === '1');
-        };
-
-        // Check initially
+        const checkAdminStatus = () => setIsAdmin(localStorage.getItem('accessLevel') === '1');
         checkAdminStatus();
-
-        // Set up event listener for storage changes
         window.addEventListener('storage', checkAdminStatus);
-
-        // Clean up event listener
         return () => window.removeEventListener('storage', checkAdminStatus);
     }, []);
 
@@ -153,26 +128,20 @@ const HomeMainContainer = () => {
         setIsLoading(true);
         try {
             const bookings = await getAllBookings();
-            const convertedEvents = bookings.map(booking => bookingToEvent(booking));
+            const convertedEvents = bookings.map(bookingToEvent);
             setEvents(convertedEvents);
 
             // Update clicked dates based on fetched events
             const newClickedDates = new Set<string>();
-
             convertedEvents.forEach(event => {
-                // For each event, mark all dates from start to end as clicked
                 const startDate = moment(event.start);
                 const endDate = moment(event.end);
-
-                // Add all dates in the range to clicked dates
                 for (let d = moment(startDate); d.isSameOrBefore(endDate, 'day'); d.add(1, 'day')) {
                     newClickedDates.add(d.format('YYYY-MM-DD'));
                 }
             });
-
             setClickedDates(newClickedDates);
         } catch (error) {
-            console.error('Failed to fetch bookings:', error);
             toast({
                 title: 'Error',
                 description: 'Failed to load bookings. Please try again.',
@@ -188,50 +157,56 @@ const HomeMainContainer = () => {
         setIsEditMode(false);
         setEditingEvent(null);
         const today = new Date();
-        setSelectedStartDate(today); // Default to today's date
-        setSelectedEndDate(today); // Default end date to same as start date
+        setSelectedStartDate(today);
+        setSelectedEndDate(today);
         setTimeError(null);
-
-        // Reset form fields
         setActivityTitle('');
         setRequestor('');
         setStartTime('09:00');
         setEndTime('10:00');
         setSelectedEquipments([]);
-
-        // Always default to pending for new activities
         setStatus('pending');
-
+        setName('');
+        setContactNo('');
+        setEmail('');
+        setAttachment(null);
+        setRemarks('');
         setIsActivityModalOpen(true);
     };
 
-    // Add a function to approve/reject activities for admins
     const handleStatusChange = async (eventId: string, newStatus: 'pending' | 'approved' | 'rejected') => {
         const eventToUpdate = events.find(event => event.id === eventId);
         if (!eventToUpdate) return;
-
         try {
-            const updatedEvent = {
-                ...eventToUpdate,
-                status: newStatus
-            };
-
-            const bookingData = eventToBooking(updatedEvent);
-            await updateBooking(parseInt(eventId), bookingData);
-
-            // Update local state
+            const formData = new FormData();
+            formData.append('activity_title', eventToUpdate.title);
+            formData.append('requestor_name', eventToUpdate.requestor);
+            formData.append('start_date', moment(eventToUpdate.start).format('YYYY-MM-DD'));
+            formData.append('end_date', moment(eventToUpdate.end).format('YYYY-MM-DD'));
+            formData.append('start_time', moment(eventToUpdate.start).format('HH:mm'));
+            formData.append('end_time', moment(eventToUpdate.end).format('HH:mm'));
+            formData.append('remarks', eventToUpdate.remarks || '');
+            formData.append('name', eventToUpdate.name || '');
+            formData.append('contact_no', eventToUpdate.contact_no || '');
+            formData.append('email', eventToUpdate.email || '');
+            formData.append('status', newStatus);
+            formData.append('equipment', JSON.stringify(eventToUpdate.equipments));
+            if (eventToUpdate.attachment) {
+                formData.append('attachment', eventToUpdate.attachment);
+            }
+            await axios.put(`/booking/${eventId}/`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             setEvents(prevEvents =>
                 prevEvents.map(event =>
-                    event.id === eventId ? updatedEvent : event
+                    event.id === eventId ? { ...event, status: newStatus } : event
                 )
             );
-
             toast({
                 title: `Activity ${newStatus}`,
                 description: `'${eventToUpdate.title}' has been ${newStatus}`,
             });
         } catch (error) {
-            console.error(`Failed to update activity status:`, error);
             toast({
                 title: 'Error',
                 description: `Failed to update the activity status. Please try again.`,
@@ -249,33 +224,34 @@ const HomeMainContainer = () => {
             });
             return;
         }
-
         try {
-            // Create a copy of events to work with
-            const updatedEvents = [...events];
-
-            // Process each pending event
             for (const event of pendingEvents) {
-                const eventIndex = updatedEvents.findIndex(e => e.id === event.id);
-                if (eventIndex !== -1) {
-                    const updatedEvent = { ...updatedEvents[eventIndex], status: 'approved' as const };
-                    updatedEvents[eventIndex] = updatedEvent;
-
-                    // Update in the backend
-                    const bookingData = eventToBooking(updatedEvent);
-                    await updateBooking(parseInt(event.id), bookingData);
+                const formData = new FormData();
+                formData.append('activity_title', event.title);
+                formData.append('requestor_name', event.requestor);
+                formData.append('start_date', moment(event.start).format('YYYY-MM-DD'));
+                formData.append('end_date', moment(event.end).format('YYYY-MM-DD'));
+                formData.append('start_time', moment(event.start).format('HH:mm'));
+                formData.append('end_time', moment(event.end).format('HH:mm'));
+                formData.append('remarks', event.remarks || '');
+                formData.append('name', event.name || '');
+                formData.append('contact_no', event.contact_no || '');
+                formData.append('email', event.email || '');
+                formData.append('status', 'approved');
+                formData.append('equipment', JSON.stringify(event.equipments));
+                if (event.attachment) {
+                    formData.append('attachment', event.attachment);
                 }
+                await axios.put(`/booking/all/${event.id}/`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
             }
-
-            // Update local state after all backend calls succeed
-            setEvents(updatedEvents);
-
+            fetchBookings();
             toast({
                 title: "Batch approval complete",
                 description: `${pendingEvents.length} activities have been approved.`
             });
         } catch (error) {
-            console.error('Failed to approve all activities:', error);
             toast({
                 title: 'Error',
                 description: 'Failed to approve all activities. Some may not have been processed.',
@@ -286,20 +262,21 @@ const HomeMainContainer = () => {
 
     const handleEditActivity = (event: Event) => {
         setIsEditMode(true);
-        setEditingEvent(event);
+        setEditingEvent({ ...event, editingAttachment: false });
         setSelectedStartDate(event.start);
-        setSelectedEndDate(event.end); // Now using the actual end date
+        setSelectedEndDate(event.end);
         setTimeError(null);
-
-        // Fill form with existing activity data
         setActivityTitle(event.title);
         setRequestor(event.requestor);
         setStartTime(moment(event.start).format('HH:mm'));
         setEndTime(moment(event.end).format('HH:mm'));
         setSelectedEquipments([...event.equipments]);
         setStatus(event.status);
-        setRemarks(event.remarks || ''); // Set remarks
-
+        setRemarks(event.remarks || '');
+        setName(event.name || '');
+        setContactNo(event.contact_no || '');
+        setEmail(event.email || '');
+        setAttachment(null);
         setIsActivityModalOpen(true);
         setIsAllActivitiesModalOpen(false);
     };
@@ -311,27 +288,19 @@ const HomeMainContainer = () => {
 
     const deleteActivity = async () => {
         if (!eventToDelete) return;
-
         try {
             await deleteBooking(parseInt(eventToDelete));
-
-            // Update local state
             setEvents(events.filter(event => event.id !== eventToDelete));
-
             toast({
                 title: "Activity deleted",
                 description: "The activity has been removed from the calendar",
             });
-
-            // Update clicked dates if needed (if no more events on that date)
             const eventToRemove = events.find(e => e.id === eventToDelete);
             if (eventToRemove) {
-                // Check if we need to update clickedDates
                 const dateStr = moment(eventToRemove.start).format('YYYY-MM-DD');
                 const eventsOnDate = events.filter(event => {
                     return moment(event.start).format('YYYY-MM-DD') === dateStr && event.id !== eventToDelete;
                 });
-
                 if (eventsOnDate.length === 0) {
                     const newClickedDates = new Set(clickedDates);
                     newClickedDates.delete(dateStr);
@@ -339,16 +308,20 @@ const HomeMainContainer = () => {
                 }
             }
         } catch (error) {
-            console.error('Failed to delete booking:', error);
             toast({
                 title: 'Error',
                 description: 'Failed to delete the booking. Please try again.',
                 variant: 'destructive'
             });
         } finally {
-            // Reset delete-related state
             setEventToDelete(null);
             setDeleteConfirmOpen(false);
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setAttachment(e.target.files[0]);
         }
     };
 
@@ -359,34 +332,18 @@ const HomeMainContainer = () => {
         newEnd: string
     ): boolean => {
         const dateStr = moment(checkDate).format('YYYY-MM-DD');
-        // Get events that occur on the same day we're checking
         const dateEvents = events.filter(event => moment(event.start).format('YYYY-MM-DD') === dateStr);
-
         const checkStartTime = moment(`${dateStr} ${newStart}`);
         const checkEndTime = moment(`${dateStr} ${newEnd}`);
-
         return dateEvents.some(event => {
-            // Skip checking against the event being edited
-            if (isEditMode && editingEvent && event.id === editingEvent.id) {
-                return false;
-            }
-
-            // For events on the same day, only check time overlaps
+            if (isEditMode && editingEvent && event.id === editingEvent.id) return false;
             const existingStart = moment(event.start);
             const existingEnd = moment(event.end);
-
-            // Extract just the time portions for comparison
             const existingStartTime = existingStart.format('HH:mm');
             const existingEndTime = existingEnd.format('HH:mm');
             const newStartTime = checkStartTime.format('HH:mm');
             const newEndTime = checkEndTime.format('HH:mm');
-
-            // Check if times are exactly the same
-            if (newStartTime === existingStartTime && newEndTime === existingEndTime) {
-                return true;
-            }
-
-            // Check if the new event's time overlaps with any existing event's time
+            if (newStartTime === existingStartTime && newEndTime === existingEndTime) return true;
             return (
                 (newStartTime >= existingStartTime && newStartTime < existingEndTime) ||
                 (newEndTime > existingStartTime && newEndTime <= existingEndTime) ||
@@ -396,142 +353,76 @@ const HomeMainContainer = () => {
     };
 
     const validateTimeInputs = (): boolean => {
-        // Check if end time is after start time
         if (startTime >= endTime) {
             setTimeError("End time must be after start time");
             return false;
         }
-
         if (!selectedStartDate || !selectedEndDate) return false;
-
-        // For new activities, check for conflicts on each day in the range
         if (!isEditMode) {
             const startDate = moment(selectedStartDate);
             const endDate = moment(selectedEndDate);
             const daysDiff = endDate.diff(startDate, 'days') + 1;
-
             for (let i = 0; i < daysDiff; i++) {
                 const currentDate = moment(selectedStartDate).add(i, 'days');
-
-                // Check for time conflicts on this specific date
                 if (hasTimeConflict(currentDate, startTime, endTime)) {
                     setTimeError(`Time conflict on ${currentDate.format('MMM D')}. Please select different times.`);
                     return false;
                 }
             }
         } else {
-            // For editing, only check the start date for conflicts
             if (hasTimeConflict(moment(selectedStartDate), startTime, endTime)) {
                 setTimeError("This time conflicts with an existing activity. Please choose a different time.");
                 return false;
             }
         }
-
         setTimeError(null);
         return true;
     };
 
-    // Form Submission Handlers
-    // Update the handleAddActivity function to create only one event for a date range
-
-    // Form Submission Handlers
+    // Form Submission Handler
     const handleAddActivity = async () => {
         if (!selectedStartDate || !selectedEndDate || !activityTitle.trim() || !requestor.trim()) {
             setTimeError("Please fill in all required fields");
             return;
         }
-
-        // Validate date range
         if (selectedEndDate < selectedStartDate) {
             setTimeError("End date cannot be before start date");
             return;
         }
-
-        // Validate time inputs before proceeding
         if (!validateTimeInputs()) return;
-
+        const now = new Date().toISOString();
         try {
+            const formData = new FormData();
+            formData.append('activity_title', activityTitle);
+            formData.append('requestor_name', requestor);
+            formData.append('start_date', moment(selectedStartDate).format('YYYY-MM-DD'));
+            formData.append('end_date', moment(selectedEndDate).format('YYYY-MM-DD'));
+            formData.append('start_time', startTime);
+            formData.append('end_time', endTime);
+            formData.append('remarks', remarks);
+            formData.append('name', name);
+            formData.append('contact_no', contactNo);
+            formData.append('email', email);
+            formData.append('status', isAdmin ? status : 'pending');
+            formData.append('created_date', now);
+            formData.append('updated_date', now);
+            formData.append('equipment', JSON.stringify(selectedEquipments));
+            if (attachment) {
+                formData.append('attachment', attachment);
+            }
             if (isEditMode && editingEvent) {
-                // Update existing event
-                const updatedEvent: Event = {
-                    ...editingEvent,
-                    title: activityTitle,
-                    requestor: requestor,
-                    equipments: selectedEquipments,
-                    start: moment(`${moment(selectedStartDate).format('YYYY-MM-DD')} ${startTime}`).toDate(),
-                    end: moment(`${moment(selectedEndDate).format('YYYY-MM-DD')} ${endTime}`).toDate(),
-                    status: isAdmin ? status : 'pending',
-                    remarks: remarks
-                };
-
-                const bookingData = eventToBooking(updatedEvent);
-                await updateBooking(parseInt(editingEvent.id), bookingData);
-
-                // Update local state
-                setEvents(prevEvents =>
-                    prevEvents.map(event =>
-                        event.id === editingEvent.id ? updatedEvent : event
-                    )
-                );
-
-                toast({
-                    title: "Activity updated",
-                    description: `'${activityTitle}' has been updated`,
+                await axios.put(`/booking/${editingEvent.id}/`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
                 });
             } else {
-                // Create a single event for the entire date range
-                const startDate = moment(selectedStartDate);
-                const endDate = moment(selectedEndDate);
-
-                // Check for conflicts on each day in the range
-                for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'day')) {
-                    if (hasTimeConflict(d, startTime, endTime)) {
-                        toast({
-                            title: "Time Conflict",
-                            description: `There is a time conflict on ${d.format('MMMM D, YYYY')}. Please adjust your schedule.`,
-                            variant: 'destructive'
-                        });
-                        return;
-                    }
-                }
-
-                // Create only one event that spans the entire date range
-                const newEvent: Event = {
-                    id: uuidv4(),
-                    title: activityTitle,
-                    requestor: requestor,
-                    equipments: selectedEquipments,
-                    start: moment(`${startDate.format('YYYY-MM-DD')} ${startTime}`).toDate(),
-                    end: moment(`${endDate.format('YYYY-MM-DD')} ${endTime}`).toDate(),
-                    status: 'pending',
-                    remarks: remarks
-                };
-
-                const bookingData = eventToBooking(newEvent);
-                const createdBooking = await createBooking(bookingData);
-
-                // Update with actual ID from API
-                newEvent.id = createdBooking.id?.toString() || newEvent.id;
-
-                // Update local state (add to events and mark dates as clicked)
-                setEvents(prevEvents => [...prevEvents, newEvent]);
-
-                // Mark the date range as having events
-                const newClickedDates = new Set(clickedDates);
-                for (let d = moment(startDate); d.isSameOrBefore(endDate); d.add(1, 'day')) {
-                    newClickedDates.add(d.format('YYYY-MM-DD'));
-                }
-                setClickedDates(newClickedDates);
-
-                toast({
-                    title: "Activity added",
-                    description: startDate.isSame(endDate, 'day')
-                        ? `'${activityTitle}' added on ${startDate.format('MMMM D, YYYY')}`
-                        : `'${activityTitle}' added from ${startDate.format('MMM D')} to ${endDate.format('MMM D, YYYY')}`
+                await axios.post('/booking/all/', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
                 });
             }
-
-            // Reset form fields
+            toast({
+                title: isEditMode ? "Activity updated" : "Activity added",
+                description: `'${activityTitle}' has been ${isEditMode ? "updated" : "added"}`,
+            });
             setActivityTitle('');
             setRequestor('');
             setRemarks('');
@@ -541,9 +432,12 @@ const HomeMainContainer = () => {
             setIsEditMode(false);
             setEditingEvent(null);
             setIsActivityModalOpen(false);
-
+            setName('');
+            setContactNo('');
+            setEmail('');
+            setAttachment(null);
+            fetchBookings();
         } catch (error) {
-            console.error('Failed to save booking:', error);
             toast({
                 title: 'Error',
                 description: 'Failed to save the booking. Please try again.',
@@ -555,20 +449,13 @@ const HomeMainContainer = () => {
     // Form Input Handlers
     const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setStartTime(e.target.value);
-        if (e.target.value >= endTime) {
-            setTimeError("End time must be after start time");
-        } else {
-            setTimeError(null);
-        }
+        if (e.target.value >= endTime) setTimeError("End time must be after start time");
+        else setTimeError(null);
     };
-
     const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setEndTime(e.target.value);
-        if (startTime >= e.target.value) {
-            setTimeError("End time must be after start time");
-        } else {
-            setTimeError(null);
-        }
+        if (startTime >= e.target.value) setTimeError("End time must be after start time");
+        else setTimeError(null);
     };
 
     // Equipment Handlers
@@ -577,20 +464,14 @@ const HomeMainContainer = () => {
             setShowCustomInput(true);
             return;
         }
-
-        // Check if equipment already selected
         const existingIndex = selectedEquipments.findIndex(item => item.name === equipment);
-
         if (existingIndex === -1) {
-            // Add new equipment with quantity 1
             setSelectedEquipments([...selectedEquipments, { name: equipment, quantity: 1 }]);
         }
     };
-
     const handleRemoveEquipment = (name: string) => {
         setSelectedEquipments(selectedEquipments.filter(item => item.name !== name));
     };
-
     const handleQuantityChange = (name: string, change: number) => {
         setSelectedEquipments(selectedEquipments.map(item =>
             item.name === name
@@ -598,10 +479,8 @@ const HomeMainContainer = () => {
                 : item
         ));
     };
-
     const handleAddCustomEquipment = () => {
         if (!customEquipment.trim()) return;
-
         setSelectedEquipments([
             ...selectedEquipments,
             { name: customEquipment, quantity: 1, isCustom: true }
@@ -619,7 +498,6 @@ const HomeMainContainer = () => {
             default: return 'bg-blue-100';
         }
     };
-
     const getStatusTextColor = (status: string) => {
         switch (status) {
             case 'pending': return 'text-orange-700';
@@ -628,7 +506,6 @@ const HomeMainContainer = () => {
             default: return 'text-blue-700';
         }
     };
-
     const getStatusBorderColor = (status: string) => {
         switch (status) {
             case 'pending': return 'border-orange-300';
@@ -637,7 +514,6 @@ const HomeMainContainer = () => {
             default: return 'border-blue-300';
         }
     };
-
     const getFilteredEvents = (status: 'pending' | 'approved' | 'rejected') => {
         return events.filter(event => event.status === status);
     };
@@ -647,85 +523,74 @@ const HomeMainContainer = () => {
         const dateStr = moment(value).format('YYYY-MM-DD');
         const isClicked = clickedDates.has(dateStr);
         const dateEvents = isClicked ? events.filter(event => moment(event.start).format('YYYY-MM-DD') === dateStr) : [];
-
-        // Determine cell color based on event statuses
         let cellClass = '';
         if (dateEvents.length > 0) {
-            // Priority: rejected > pending > approved
-            if (dateEvents.some(e => e.status === 'rejected')) {
-                cellClass = 'bg-red-50';
-            } else if (dateEvents.some(e => e.status === 'pending')) {
-                cellClass = 'bg-orange-50';
-            } else if (dateEvents.some(e => e.status === 'approved')) {
-                cellClass = 'bg-green-50';
-            }
+            if (dateEvents.some(e => e.status === 'rejected')) cellClass = 'bg-red-50';
+            else if (dateEvents.some(e => e.status === 'pending')) cellClass = 'bg-orange-50';
+            else if (dateEvents.some(e => e.status === 'approved')) cellClass = 'bg-green-50';
         }
-
         return (
             <div className={`rbc-day-bg  ${cellClass}`}>
-                {children} 
-            </div> 
+                {children}
+            </div>
         );
     };
 
     const EventComponent = ({ event }: { event: any }) => {
-    const statusColorClass = getStatusColor(event.status);
-    const statusTextClass = getStatusTextColor(event.status);
-    const statusBorderClass = getStatusBorderColor(event.status);
+        const statusColorClass = getStatusColor(event.status);
+        const statusTextClass = getStatusTextColor(event.status);
+        const statusBorderClass = getStatusBorderColor(event.status);
+        return (
+            <div
+                className={`${statusColorClass} ${statusBorderClass} border rounded px-1 py-0.5 overflow-hidden flex gap-1 flex-col`}
+                style={{ fontSize: '10px', lineHeight: '1.2' }}
+            >
+                <div className={`font-medium truncate ${statusTextClass}`}>{event.title}</div>
+                <div className="truncate text-[8px] text-[#2e2e2e]">
+                    {moment(event.start).format('h:mm A')}-{moment(event.end).format('h:mm A')}
+                </div>
+            </div>
+        );
+    };
 
     return (
-        <div
-            className={`${statusColorClass} ${statusBorderClass} border rounded px-1 py-0.5 overflow-hidden flex gap-1 flex-col`}
-            style={{ fontSize: '10px', lineHeight: '1.2' }}
-        >
-            <div className={`font-medium truncate ${statusTextClass}`}>{event.title}</div>
-            <div className="truncate text-[8px] text-[#2e2e2e]">
-                {moment(event.start).format('h:mm A')}-{moment(event.end).format('h:mm A')}
-            </div>
-        </div>
-    );
-};
-    return (
         <div className="flex flex-col items-center py-8 px-4 w-full">
-           
             <Card className="w-full max-w-6xl ">
-                
                 <CardHeader className="p-4 pb-0 flex justify-between items-center">
-                    
-                   
-                     <h2 className="text-2xl md:text-base border border-primary w-full  font-extrabold p-3 rounded-md mb-6 text-primary flex gap-2 items-center"> <CalendarIcon className="h-6 w-6 sm:w-4 sm:h-4 text-primary" /> Event Calendar</h2>
-                     <div className=' flex gap-2 md:flex-col w-full justify-between'>
+                    <h2 className="text-2xl md:text-base border border-primary w-full  font-extrabold p-3 rounded-md mb-6 text-primary flex gap-2 items-center">
+                        <CalendarIcon className="h-6 w-6 sm:w-4 sm:h-4 text-primary" /> Event Calendar
+                    </h2>
+                    <div className=' flex gap-2 md:flex-col w-full justify-between'>
                         <div>
-                        {isAdmin && (
+                            {isAdmin && (
+                                <Button
+                                    onClick={handleApproveAll}
+                                    variant="outline"
+                                    className="flex items-center"
+                                >
+                                    <Check className="mr-1 h-4 w-4" />
+                                    Approve All Pending
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex space-x-2">
                             <Button
-                                onClick={handleApproveAll}
+                                onClick={openAddActivityModal}
+                                className="flex items-center"
+                            >
+                                <Plus className="mr-1 h-4 w-4" />
+                                Add Activity
+                            </Button>
+                            <Button
+                                onClick={() => setIsAllActivitiesModalOpen(true)}
                                 variant="outline"
                                 className="flex items-center"
                             >
-                                <Check className="mr-1 h-4 w-4" />
-                                Approve All Pending
+                                <List className="mr-1 h-4 w-4" />
+                                View Activities
                             </Button>
-                        )}
+                        </div>
                     </div>
-                    <div className="flex space-x-2">
-                        <Button
-                            onClick={openAddActivityModal}
-                            className="flex items-center"
-                        >
-                            <Plus className="mr-1 h-4 w-4" />
-                            Add Activity
-                        </Button>
-                        <Button
-                            onClick={() => setIsAllActivitiesModalOpen(true)}
-                            variant="outline"
-                            className="flex items-center"
-                        >
-                            <List className="mr-1 h-4 w-4" />
-                            View Activities
-                        </Button>
-                    </div>
-                     </div>
-                    
                 </CardHeader>
                 <CardContent className="p-6">
                     {isLoading ? (
@@ -738,7 +603,7 @@ const HomeMainContainer = () => {
                             events={events}
                             startAccessor="start"
                             endAccessor="end"
-                            selectable={false} // Disable selection
+                            selectable={false}
                             className="min-h-[700px]"
                             components={{
                                 toolbar: (props) => (
@@ -755,13 +620,11 @@ const HomeMainContainer = () => {
                                             </button>
                                         </span>
                                         <span className="rbc-toolbar-label sm:mt-2 text-primary text-[30px] sm:text-lg " style={{
-                                         
                                             fontWeight: 'bold',
                                             textAlign: 'right',
                                         }}>
                                             {props.label}
                                         </span>
-                                       
                                     </div>
                                 ),
                                 dateCellWrapper: CustomDateCell,
@@ -776,19 +639,16 @@ const HomeMainContainer = () => {
                             })}
                             views={['month']}
                             defaultView="month"
-                            dayLayoutAlgorithm="no-overlap" // Better handling of multiple events
-                            onSelectEvent={() => { }} // Disable event selection
-                            onSelectSlot={() => { }} // Disable slot selection
+                            dayLayoutAlgorithm="no-overlap"
+                            onSelectEvent={() => { }}
+                            onSelectSlot={() => { }}
                         />
                     )}
                 </CardContent>
             </Card>
 
             {/* Delete Confirmation Dialog */}
-            <Dialog
-                open={deleteConfirmOpen}
-                onOpenChange={setDeleteConfirmOpen}
-            >
+            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Are you sure?</DialogTitle>
@@ -797,18 +657,10 @@ const HomeMainContainer = () => {
                         </p>
                     </DialogHeader>
                     <DialogFooter className="flex space-x-2 justify-end mt-4">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setDeleteConfirmOpen(false)}
-                        >
+                        <Button type="button" variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
                             Cancel
                         </Button>
-                        <Button
-                            type="button"
-                            onClick={deleteActivity}
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                        >
+                        <Button type="button" onClick={deleteActivity} className="bg-red-600 hover:bg-red-700 text-white">
                             Delete
                         </Button>
                     </DialogFooter>
@@ -826,14 +678,29 @@ const HomeMainContainer = () => {
                             Fill in the details to {isEditMode ? "update" : "schedule"} an activity
                         </p>
                     </DialogHeader>
+                    <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                        <Label className="text-right font-medium">Name</Label>
+                        <div className="col-span-3">
+                            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" placeholder="Enter full name" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                        <Label className="text-right font-medium">Contact No.</Label>
+                        <div className="col-span-3">
+                            <Input id="contact-no" value={contactNo} onChange={(e) => setContactNo(e.target.value)} className="col-span-3" placeholder="Enter contact number" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                        <Label className="text-right font-medium">Email</Label>
+                        <div className="col-span-3">
+                            <Input id="email" value={email} onChange={(e) => setEmail(e.target.value)} className="col-span-3" placeholder="Enter email address" />
+                        </div>
+                    </div>
+                    <Separator />
                     <div className="grid gap-4 py-4">
-                        {/* Activity Details Section */}
-
                         <div className="space-y-4">
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="start-date" className="text-right font-medium">
-                                    Start Date
-                                </Label>
+                                <Label htmlFor="start-date" className="text-right font-medium">Start Date</Label>
                                 <div className="col-span-3">
                                     <Input
                                         id="start-date"
@@ -842,20 +709,14 @@ const HomeMainContainer = () => {
                                         onChange={(e) => {
                                             const newDate = new Date(e.target.value);
                                             setSelectedStartDate(newDate);
-                                            // If end date is before start date, update end date too
-                                            if (selectedEndDate && newDate > selectedEndDate) {
-                                                setSelectedEndDate(newDate);
-                                            }
+                                            if (selectedEndDate && newDate > selectedEndDate) setSelectedEndDate(newDate);
                                         }}
                                         className="w-full"
                                     />
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="end-date" className="text-right font-medium">
-                                    End Date
-                                </Label>
+                                <Label htmlFor="end-date" className="text-right font-medium">End Date</Label>
                                 <div className="col-span-3">
                                     <Input
                                         id="end-date"
@@ -867,11 +728,8 @@ const HomeMainContainer = () => {
                                     />
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="activity-title" className="text-right font-medium">
-                                    Activity Title
-                                </Label>
+                                <Label htmlFor="activity-title" className="text-right font-medium">Activity Title</Label>
                                 <Input
                                     id="activity-title"
                                     value={activityTitle}
@@ -880,11 +738,8 @@ const HomeMainContainer = () => {
                                     placeholder="Enter activity title"
                                 />
                             </div>
-
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="requestor" className="text-right font-medium">
-                                    Name of Requestor
-                                </Label>
+                                <Label htmlFor="requestor" className="text-right font-medium">Name of Requestor</Label>
                                 <Input
                                     id="requestor"
                                     value={requestor}
@@ -894,8 +749,6 @@ const HomeMainContainer = () => {
                                 />
                             </div>
                         </div>
-
-                        {/* Time Selection Section */}
                         <div className="pt-2">
                             <div className="col-span-4">
                                 <Separator />
@@ -904,44 +757,24 @@ const HomeMainContainer = () => {
                                     <span>Time Schedule</span>
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-4 items-center gap-4 mt-2">
-                                <Label className="text-right font-medium">
-                                    Start Time
-                                </Label>
+                                <Label className="text-right font-medium">Start Time</Label>
                                 <div className="col-span-3">
-                                    <Input
-                                        id="start-time"
-                                        type="time"
-                                        value={startTime}
-                                        onChange={handleStartTimeChange}
-                                    />
+                                    <Input id="start-time" type="time" value={startTime} onChange={handleStartTimeChange} />
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-4 items-center gap-4 mt-2">
-                                <Label className="text-right font-medium">
-                                    End Time
-                                </Label>
+                                <Label className="text-right font-medium">End Time</Label>
                                 <div className="col-span-3">
-                                    <Input
-                                        id="end-time"
-                                        type="time"
-                                        value={endTime}
-                                        onChange={handleEndTimeChange}
-                                    />
+                                    <Input id="end-time" type="time" value={endTime} onChange={handleEndTimeChange} />
                                 </div>
                             </div>
-
-                            {/* Time conflict error display */}
                             {timeError && (
                                 <div className="mt-2 text-red-500 text-sm text-center">
                                     {timeError}
                                 </div>
                             )}
                         </div>
-
-                        {/* Status Selection - Only visible to admins */}
                         {isAdmin && (
                             <div className="pt-2">
                                 <div className="col-span-4">
@@ -952,9 +785,7 @@ const HomeMainContainer = () => {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="status" className="text-right font-medium">
-                                        Activity Status
-                                    </Label>
+                                    <Label htmlFor="status" className="text-right font-medium">Activity Status</Label>
                                     <Select
                                         value={status}
                                         onValueChange={(value: 'pending' | 'approved' | 'rejected') => setStatus(value)}
@@ -971,8 +802,6 @@ const HomeMainContainer = () => {
                                 </div>
                             </div>
                         )}
-
-                        {/* Status display for regular users */}
                         {!isAdmin && isEditMode && (
                             <div className="pt-2">
                                 <div className="col-span-4">
@@ -980,9 +809,7 @@ const HomeMainContainer = () => {
                                     <div className="text-sm font-medium my-3">Current Status</div>
                                 </div>
                                 <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label className="text-right font-medium">
-                                        Status
-                                    </Label>
+                                    <Label className="text-right font-medium">Status</Label>
                                     <div className="col-span-3">
                                         <Badge
                                             variant={status === 'pending' ? 'outline' :
@@ -1003,8 +830,6 @@ const HomeMainContainer = () => {
                                 </div>
                             </div>
                         )}
-
-                        {/* Equipment Section */}
                         <div className="pt-2">
                             <div className="col-span-4">
                                 <Separator />
@@ -1013,11 +838,8 @@ const HomeMainContainer = () => {
                                     <span>Equipment Needed</span>
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-4 items-start gap-4">
-                                <Label className="text-right mt-2 font-medium">
-                                    Add Equipment
-                                </Label>
+                                <Label className="text-right mt-2 font-medium">Add Equipment</Label>
                                 <div className="col-span-3 space-y-3">
                                     <Select onValueChange={handleEquipmentSelect}>
                                         <SelectTrigger>
@@ -1029,8 +851,6 @@ const HomeMainContainer = () => {
                                             ))}
                                         </SelectContent>
                                     </Select>
-
-                                    {/* Selected equipment chips */}
                                     {selectedEquipments.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mt-3 pt-1">
                                             {selectedEquipments.map((item) => (
@@ -1070,8 +890,6 @@ const HomeMainContainer = () => {
                                             ))}
                                         </div>
                                     )}
-
-                                    {/* Custom equipment input */}
                                     {showCustomInput && (
                                         <div className="flex space-x-2 mt-3">
                                             <Input
@@ -1085,7 +903,6 @@ const HomeMainContainer = () => {
                                             </Button>
                                         </div>
                                     )}
-
                                     {!selectedEquipments.length && !showCustomInput && (
                                         <p className="text-sm text-muted-foreground mt-1">
                                             Select equipment from the dropdown or choose "Others" to add custom items.
@@ -1094,7 +911,130 @@ const HomeMainContainer = () => {
                                 </div>
                             </div>
                         </div>
-                        {/* Remarks Section */}
+                        <div className="pt-2">
+                            <div className="col-span-4">
+                                <Separator />
+                                <div className="text-sm font-medium my-3 flex items-center">
+                                    <Info className="h-4 w-4 mr-2 text-blue-500" />
+                                    <span>Attachment</span>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 items-start gap-4">
+
+                                <Label htmlFor="attachment" className="text-right mt-2 font-medium">Attachment Link</Label>
+                                <div className="col-span-3 flex flex-col gap-2">
+                                    {/* Show input if not edit mode or if editing link, otherwise show link only */}
+                                    {(!isEditMode || (isEditMode && editingEvent && editingEvent.id && editingEvent.id === (editingEvent?.id) && editingEvent.editingAttachment)) ? (
+                                        <>
+                                            <Input
+                                                id="attachment"
+                                                type="text"
+                                                value={attachment ? (typeof attachment === "string" ? attachment : attachment.name) : ""}
+                                                onChange={e => {
+                                                    let val = e.target.value;
+                                                    const driveFileRegex = /^https:\/\/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)\/view/;
+                                                    const drivePrefix = "https://drive.google.com/file/d/";
+                                                    // If not a Google Drive file link, clear and warn
+                                                    if (val && !val.startsWith(drivePrefix)) {
+                                                        setAttachment(null);
+                                                        setAttachmentWarning("The link must be a Google Drive file link (https://drive.google.com/file/d/...)");
+                                                        return;
+                                                    }
+                                                    // If matches /view, convert to /preview
+                                                    if (driveFileRegex.test(val)) {
+                                                        val = val.replace('/view', '/preview');
+                                                        e.target.value = val;
+                                                    }
+                                                    setAttachment(val as any);
+                                                    setAttachmentWarning("");
+                                                }}
+                                                placeholder="Paste Google Drive file link here (e.g. https://drive.google.com/file/d/FILE_ID/view)"
+                                                className="w-full"
+                                            />
+                                            {attachmentWarning && (
+                                                <div className="text-xs text-red-700 bg-red-100 border border-red-300 rounded px-2 py-1 mb-1">
+                                                    {attachmentWarning}
+                                                </div>
+                                            )}
+                                            <span className="text-xs text-muted-foreground">
+                                                Example: <code className="bg-gray-100 px-1 rounded">https://drive.google.com/file/d/1esr_ccudrIG6-QPuyZul-eiG97ggQZSC/view</code>
+                                            </span>
+                                            {/* Google Drive access warning */}
+                                            {attachment && typeof attachment === "string" && attachment.includes("drive.google.com") && (
+                                                <div className="text-xs text-yellow-700 bg-yellow-100 border border-yellow-300 rounded px-2 py-1 mb-1">
+                                                    <b>Warning:</b> Make sure the Google Drive document is set to <b>Anyone with the link can view</b>.<br />
+                                                    Otherwise, others may not be able to access the file.
+                                                </div>
+                                            )}
+                                            {attachment && typeof attachment === "string" && (
+                                                <div className="w-full mt-2 border rounded bg-gray-50 p-2">
+                                                    <div className="text-xs mb-1 text-blue-600 font-semibold">Attachment Preview:</div>
+                                                    <div className="w-full" style={{ minHeight: 200, maxHeight: 350 }}>
+                                                        <iframe
+                                                            src={attachment}
+                                                            title="Attachment Preview"
+                                                            className="w-full"
+                                                            style={{ minHeight: 200, maxHeight: 350, border: 'none' }}
+                                                            allowFullScreen
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {isEditMode && (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-2 w-fit"
+                                                    onClick={() => {
+                                                        setAttachment(editingEvent?.attachment || "");
+                                                        setEditingEvent(editingEvent ? { ...editingEvent, editingAttachment: false } : null);
+                                                    }}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {editingEvent?.attachment && (
+                                                <div>
+                                                    <a
+                                                        href={editingEvent.attachment}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-600 underline text-xs hover:text-blue-800"
+                                                    >
+                                                        {editingEvent.attachment}
+                                                    </a>
+                                                    <div className="w-full mt-2 border rounded bg-gray-50 p-2">
+                                                        <div className="text-xs mb-1 text-blue-600 font-semibold">Attachment Preview:</div>
+                                                        <div className="w-full" style={{ minHeight: 200, maxHeight: 350 }}>
+                                                            <iframe
+                                                                src={editingEvent.attachment}
+                                                                title="Attachment Preview"
+                                                                className="w-full"
+                                                                style={{ minHeight: 200, maxHeight: 350, border: 'none' }}
+                                                                allowFullScreen
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="mt-2 w-fit"
+                                                onClick={() => setEditingEvent(editingEvent ? { ...editingEvent, editingAttachment: true } : null)}
+                                            >
+                                                Edit Link
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                         <div className="pt-2">
                             <div className="col-span-4">
                                 <Separator />
@@ -1103,11 +1043,8 @@ const HomeMainContainer = () => {
                                     <span>Additional Remarks</span>
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-4 items-start gap-4">
-                                <Label htmlFor="remarks" className="text-right mt-2 font-medium">
-                                    Remarks
-                                </Label>
+                                <Label htmlFor="remarks" className="text-right mt-2 font-medium">Remarks</Label>
                                 <div className="col-span-3">
                                     <textarea
                                         id="remarks"
@@ -1120,7 +1057,6 @@ const HomeMainContainer = () => {
                             </div>
                         </div>
                     </div>
-
                     <DialogFooter className="pt-2">
                         <Button type="button" variant="outline" onClick={() => setIsActivityModalOpen(false)}>
                             Cancel
@@ -1133,15 +1069,11 @@ const HomeMainContainer = () => {
             </Dialog>
 
             {/* All Activities Modal with Tabs */}
-            <Dialog
-                open={isAllActivitiesModalOpen}
-                onOpenChange={setIsAllActivitiesModalOpen}
-            >
+            <Dialog open={isAllActivitiesModalOpen} onOpenChange={setIsAllActivitiesModalOpen}>
                 <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-hidden flex flex-col">
                     <DialogHeader>
                         <DialogTitle>All Activities</DialogTitle>
                     </DialogHeader>
-
                     <Tabs
                         defaultValue="pending"
                         value={activeTab}
@@ -1162,7 +1094,6 @@ const HomeMainContainer = () => {
                                 Rejected
                             </TabsTrigger>
                         </TabsList>
-
                         <div className="overflow-y-auto flex-1 pr-2" style={{ maxHeight: 'calc(80vh - 180px)' }}>
                             <TabsContent value="pending" className="mt-0">
                                 {getFilteredEvents('pending').length > 0 ? (
@@ -1173,7 +1104,6 @@ const HomeMainContainer = () => {
                                                     <div>
                                                         <h4 className="font-medium text-lg">{event.title}</h4>
                                                         <p className="text-sm text-gray-600">
-                                                            {/* Display date range if start and end dates are different */}
                                                             {moment(event.start).format('YYYY-MM-DD') !== moment(event.end).format('YYYY-MM-DD')
                                                                 ? `${moment(event.start).format('MMM D, YYYY')} to ${moment(event.end).format('MMM D, YYYY')} • ${moment(event.start).format('h:mm A')} - ${moment(event.end).format('h:mm A')}`
                                                                 : `${moment(event.start).format('MMM D, YYYY')} • ${moment(event.start).format('h:mm A')} - ${moment(event.end).format('h:mm A')}`
@@ -1196,6 +1126,32 @@ const HomeMainContainer = () => {
                                                             <div className="mt-2">
                                                                 <p className="text-xs text-gray-500 mb-1">Remarks:</p>
                                                                 <p className="text-sm text-gray-600 italic">{event.remarks}</p>
+                                                            </div>
+                                                        )}
+                                                        {event.attachment && (
+                                                            <div className="mt-2">
+                                                                <p className="text-xs text-gray-500 mb-1">Attachment:</p>
+                                                                <a
+                                                                    href={event.attachment}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-blue-600 underline text-xs hover:text-blue-800"
+                                                                >
+                                                                    View Attachment
+                                                                </a>
+                                                                {/* Inline viewer for Google Drive or embeddable links */}
+                                                                <div className="w-full mt-2 border rounded bg-gray-50 p-2">
+                                                                    <div className="text-xs mb-1 text-blue-600 font-semibold">Attachment Preview:</div>
+                                                                    <div className="w-full" style={{ minHeight: 200, maxHeight: 350 }}>
+                                                                        <iframe
+                                                                            src={event.attachment}
+                                                                            title="Attachment Preview"
+                                                                            className="w-full"
+                                                                            style={{ minHeight: 200, maxHeight: 350, border: 'none' }}
+                                                                            allowFullScreen
+                                                                        />
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1247,7 +1203,6 @@ const HomeMainContainer = () => {
                                     <p className="text-center text-gray-500 py-6">No pending activities</p>
                                 )}
                             </TabsContent>
-
                             <TabsContent value="approved" className="mt-0">
                                 {getFilteredEvents('approved').length > 0 ? (
                                     <div className="space-y-3">
@@ -1257,7 +1212,6 @@ const HomeMainContainer = () => {
                                                     <div>
                                                         <h4 className="font-medium text-lg">{event.title}</h4>
                                                         <p className="text-sm text-gray-600">
-                                                            {/* Display date range if start and end dates are different */}
                                                             {moment(event.start).format('YYYY-MM-DD') !== moment(event.end).format('YYYY-MM-DD')
                                                                 ? `${moment(event.start).format('MMM D, YYYY')} to ${moment(event.end).format('MMM D, YYYY')} • ${moment(event.start).format('h:mm A')} - ${moment(event.end).format('h:mm A')}`
                                                                 : `${moment(event.start).format('MMM D, YYYY')} • ${moment(event.start).format('h:mm A')} - ${moment(event.end).format('h:mm A')}`
@@ -1311,7 +1265,6 @@ const HomeMainContainer = () => {
                                     <p className="text-center text-gray-500 py-6">No approved activities</p>
                                 )}
                             </TabsContent>
-
                             <TabsContent value="rejected" className="mt-0">
                                 {getFilteredEvents('rejected').length > 0 ? (
                                     <div className="space-y-3">
@@ -1321,7 +1274,6 @@ const HomeMainContainer = () => {
                                                     <div>
                                                         <h4 className="font-medium text-lg">{event.title}</h4>
                                                         <p className="text-sm text-gray-600">
-                                                            {/* Display date range if start and end dates are different */}
                                                             {moment(event.start).format('YYYY-MM-DD') !== moment(event.end).format('YYYY-MM-DD')
                                                                 ? `${moment(event.start).format('MMM D, YYYY')} to ${moment(event.end).format('MMM D, YYYY')} • ${moment(event.start).format('h:mm A')} - ${moment(event.end).format('h:mm A')}`
                                                                 : `${moment(event.start).format('MMM D, YYYY')} • ${moment(event.start).format('h:mm A')} - ${moment(event.end).format('h:mm A')}`
@@ -1377,12 +1329,8 @@ const HomeMainContainer = () => {
                             </TabsContent>
                         </div>
                     </Tabs>
-
                     <DialogFooter>
-                        <Button
-                            type="button"
-                            onClick={() => setIsAllActivitiesModalOpen(false)}
-                        >
+                        <Button type="button" onClick={() => setIsAllActivitiesModalOpen(false)}>
                             Close
                         </Button>
                     </DialogFooter>

@@ -12,12 +12,18 @@ export interface Booking {
   end_date: string;
   activity_title: string;
   requestor_name: string;
+  name: string;
+  contact_no: string;
+  email: string;
   start_time: string;
   end_time: string;
   equipment: Equipment[];
-  user: number;
   remarks: string;
   status: 'pending' | 'approved' | 'rejected';
+  attachment?: string;
+  created_date?: string;
+  updated_date?: string;
+  user?: number;
 }
 
 /**
@@ -25,31 +31,23 @@ export interface Booking {
  */
 export const getAllBookings = (): Promise<Booking[]> => {
   const token = localStorage.getItem('Token');
-  
+
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
   }
-  
+
   return new Promise((resolve, reject) => {
     axios.get('booking/all/')
       .then((response) => {
-        console.log('API Response:', response.data);
-        
-        // Case 1: If the API returns { success: true, data: [...] } structure
         if (response.data && typeof response.data === 'object' && 'success' in response.data) {
           if (response.data.success) {
             resolve(response.data.data);
           } else {
             reject(new Error(response.data.message || 'Failed to fetch bookings'));
           }
-        } 
-        // Case 2: If the API directly returns the array of bookings
-        else if (Array.isArray(response.data)) {
+        } else if (Array.isArray(response.data)) {
           resolve(response.data);
-        }
-        // Case 3: If the API has a different structure
-        else if (response.data && typeof response.data === 'object') {
-          // Check common alternative properties
+        } else if (response.data && typeof response.data === 'object') {
           if (Array.isArray(response.data.results)) {
             resolve(response.data.results);
           } else if (Array.isArray(response.data.bookings)) {
@@ -74,23 +72,18 @@ export const getAllBookings = (): Promise<Booking[]> => {
  */
 export const getBookingById = (id: number): Promise<Booking> => {
   const token = localStorage.getItem('Token');
-  
+
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
   }
-  
+
   return new Promise((resolve, reject) => {
     axios.get(`booking/${id}/`)
       .then((response) => {
-        console.log('API Response:', response.data);
-        
         if (response.data && typeof response.data === 'object') {
-          // If the API returns the booking directly
           if ('id' in response.data || 'activity_title' in response.data) {
             resolve(response.data);
-          }
-          // If the API wraps the booking in a data property
-          else if (response.data.data && typeof response.data.data === 'object') {
+          } else if (response.data.data && typeof response.data.data === 'object') {
             resolve(response.data.data);
           } else {
             reject(new Error('Booking not found'));
@@ -111,23 +104,18 @@ export const getBookingById = (id: number): Promise<Booking> => {
  */
 export const createBooking = (bookingData: Omit<Booking, 'id'>): Promise<Booking> => {
   const token = localStorage.getItem('Token');
-  
+
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
   }
-  
+
   return new Promise((resolve, reject) => {
     axios.post('booking/all/', bookingData)
       .then((response) => {
-        console.log('API Response:', response.data);
-        
         if (response.data && typeof response.data === 'object') {
-          // If the API returns success: true and the created booking
           if ('success' in response.data && response.data.success) {
             resolve(response.data.data || response.data.booking);
-          }
-          // If the API returns the booking directly
-          else if ('id' in response.data) {
+          } else if ('id' in response.data) {
             resolve(response.data);
           } else {
             reject(new Error('Failed to create booking'));
@@ -148,23 +136,18 @@ export const createBooking = (bookingData: Omit<Booking, 'id'>): Promise<Booking
  */
 export const updateBooking = (id: number, bookingData: Partial<Booking>): Promise<Booking> => {
   const token = localStorage.getItem('Token');
-  
+
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
   }
-  
+
   return new Promise((resolve, reject) => {
     axios.put(`booking/${id}/`, bookingData)
       .then((response) => {
-        console.log('API Response:', response.data);
-        
         if (response.data && typeof response.data === 'object') {
-          // If the API returns success: true and the updated booking
           if ('success' in response.data && response.data.success) {
             resolve(response.data.data || response.data.booking);
-          }
-          // If the API returns the booking directly
-          else if ('id' in response.data) {
+          } else if ('id' in response.data) {
             resolve(response.data);
           } else {
             reject(new Error('Failed to update booking'));
@@ -185,17 +168,14 @@ export const updateBooking = (id: number, bookingData: Partial<Booking>): Promis
  */
 export const deleteBooking = (id: number): Promise<void> => {
   const token = localStorage.getItem('Token');
-  
+
   if (!token) {
     return Promise.reject(new Error('Authentication token not found'));
   }
-  
+
   return new Promise((resolve, reject) => {
     axios.delete(`booking/${id}/`)
       .then((response) => {
-        console.log('API Response:', response.data);
-        
-        // Most APIs return 204 No Content or a success message
         if (response.status === 204) {
           resolve();
         } else if (response.data && typeof response.data === 'object' && 'success' in response.data) {
